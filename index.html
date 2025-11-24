@@ -22,59 +22,63 @@
                 </div>
 
                 <div class="board">
-                    <!-- Top half of board (points 13-24) -->
-                    <div class="board-half board-top">
-                        <!-- Right quadrant (points 13-18) -->
-                        <div class="quadrant quadrant-top-right">
-                            <div class="point point-down" data-point="13"></div>
-                            <div class="point point-down" data-point="14"></div>
-                            <div class="point point-down" data-point="15"></div>
-                            <div class="point point-down" data-point="16"></div>
-                            <div class="point point-down" data-point="17"></div>
-                            <div class="point point-down" data-point="18"></div>
+                    <div class="board-content">
+                        <!-- Top half of board (points 13-24) -->
+                        <div class="board-half board-top">
+                            <!-- Right quadrant (points 13-18) -->
+                            <div class="quadrant quadrant-top-right">
+                                <div class="point point-down" data-point="13"></div>
+                                <div class="point point-down" data-point="14"></div>
+                                <div class="point point-down" data-point="15"></div>
+                                <div class="point point-down" data-point="16"></div>
+                                <div class="point point-down" data-point="17"></div>
+                                <div class="point point-down" data-point="18"></div>
+                            </div>
+
+                            <!-- Bar spacer for top half -->
+                            <div class="bar-spacer"></div>
+
+                            <!-- Left quadrant (points 19-24) -->
+                            <div class="quadrant quadrant-top-left">
+                                <div class="point point-down" data-point="19"></div>
+                                <div class="point point-down" data-point="20"></div>
+                                <div class="point point-down" data-point="21"></div>
+                                <div class="point point-down" data-point="22"></div>
+                                <div class="point point-down" data-point="23"></div>
+                                <div class="point point-down" data-point="24"></div>
+                            </div>
                         </div>
 
-                        <!-- Bar (middle area for hit checkers) -->
-                        <div class="bar" id="bar" data-point="bar">
-                            <div class="bar-label">BAR</div>
-                            <div class="checkers-container"></div>
-                        </div>
+                        <!-- Bottom half of board (points 12-1) -->
+                        <div class="board-half board-bottom">
+                            <!-- Right quadrant (points 12-7) -->
+                            <div class="quadrant quadrant-bottom-right">
+                                <div class="point point-up" data-point="12"></div>
+                                <div class="point point-up" data-point="11"></div>
+                                <div class="point point-up" data-point="10"></div>
+                                <div class="point point-up" data-point="9"></div>
+                                <div class="point point-up" data-point="8"></div>
+                                <div class="point point-up" data-point="7"></div>
+                            </div>
 
-                        <!-- Left quadrant (points 19-24) -->
-                        <div class="quadrant quadrant-top-left">
-                            <div class="point point-down" data-point="19"></div>
-                            <div class="point point-down" data-point="20"></div>
-                            <div class="point point-down" data-point="21"></div>
-                            <div class="point point-down" data-point="22"></div>
-                            <div class="point point-down" data-point="23"></div>
-                            <div class="point point-down" data-point="24"></div>
+                            <!-- Bar spacer for bottom half -->
+                            <div class="bar-spacer"></div>
+
+                            <!-- Left quadrant (points 6-1) -->
+                            <div class="quadrant quadrant-bottom-left">
+                                <div class="point point-up" data-point="6"></div>
+                                <div class="point point-up" data-point="5"></div>
+                                <div class="point point-up" data-point="4"></div>
+                                <div class="point point-up" data-point="3"></div>
+                                <div class="point point-up" data-point="2"></div>
+                                <div class="point point-up" data-point="1"></div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Bottom half of board (points 12-1) -->
-                    <div class="board-half board-bottom">
-                        <!-- Right quadrant (points 12-7) -->
-                        <div class="quadrant quadrant-bottom-right">
-                            <div class="point point-up" data-point="12"></div>
-                            <div class="point point-up" data-point="11"></div>
-                            <div class="point point-up" data-point="10"></div>
-                            <div class="point point-up" data-point="9"></div>
-                            <div class="point point-up" data-point="8"></div>
-                            <div class="point point-up" data-point="7"></div>
-                        </div>
-
-                        <!-- Bar section (already in top half, spacer for alignment) -->
-                        <div class="bar-spacer"></div>
-
-                        <!-- Left quadrant (points 6-1) -->
-                        <div class="quadrant quadrant-bottom-left">
-                            <div class="point point-up" data-point="6"></div>
-                            <div class="point point-up" data-point="5"></div>
-                            <div class="point point-up" data-point="4"></div>
-                            <div class="point point-up" data-point="3"></div>
-                            <div class="point point-up" data-point="2"></div>
-                            <div class="point point-up" data-point="1"></div>
-                        </div>
+                    <!-- Bar (middle area for hit checkers) - spans full height -->
+                    <div class="bar" id="bar" data-point="bar">
+                        <div class="checkers-container"></div>
                     </div>
                 </div>
 

@@ -1,0 +1,478 @@
+/* 
+   Backgammon Game Styles
+   Reference: CSS layout using Flexbox - https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Flexible_Box_Layout
+*/
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.game-container {
+    max-width: 1400px;
+    width: 100%;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    color: #f39c12;
+}
+
+.status-display {
+    font-size: 1.2em;
+    padding: 10px;
+    background-color: #34495e;
+    border-radius: 5px;
+}
+
+.main-game {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.board-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Board styling */
+.board {
+    background-color: #04450c;
+    border: 8px solid #000000;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.board-half {
+    display: flex;
+    gap: 0;
+}
+
+.quadrant {
+    display: flex;
+    gap: 2px;
+}
+
+.bar {
+    width: 50px;
+    background-color: #654321;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-left: 2px solid #4a3219;
+    border-right: 2px solid #4a3219;
+}
+
+.bar-spacer {
+    width: 50px;
+}
+
+.bar-label {
+    font-size: 0.7em;
+    color: #d4af37;
+    font-weight: bold;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+/* Point (triangle) styling */
+.point {
+    width: 50px;
+    height: 200px;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.point::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 25px solid transparent;
+    border-right: 25px solid transparent;
+}
+
+/* Points facing down (top half) */
+.point-down::before {
+    top: 0;
+    border-top: 180px solid;
+}
+
+.point-down .checker:first-child {
+    margin-top: 5px;
+}
+
+/* Points facing up (bottom half) */
+.point-up {
+    flex-direction: column-reverse;
+}
+
+.point-up::before {
+    bottom: 0;
+    border-bottom: 180px solid;
+}
+
+.point-up .checker:first-child {
+    margin-bottom: 5px;
+}
+
+/* Alternating point colors */
+.point:nth-child(odd)::before {
+    border-top-color: #a48623;
+    border-bottom-color: #d4af37;
+}
+
+.point:nth-child(even)::before {
+    border-top-color: #1a1a1a;
+    border-bottom-color: #1a1a1a;
+}
+
+/* Point highlighting states */
+.point.valid-destination {
+    opacity: 0.8;
+}
+
+.point.valid-destination::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(46, 204, 113, 0.3);
+    border: 2px solid #2ecc71;
+    z-index: 1;
+}
+
+/* Checker styling */
+.checker {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 3px solid;
+    position: relative;
+    z-index: 10;
+    cursor: pointer;
+    margin: -5px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8em;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.checker:hover {
+    transform: scale(1.05);
+}
+
+.checker.selected {
+    box-shadow: 0 0 15px 5px rgba(241, 196, 15, 0.8);
+    transform: scale(1.1);
+}
+
+/* Player 1 checkers (white) */
+.checker.player1 {
+    background: radial-gradient(circle at 30% 30%, #ffffff, #d5d5d5);
+    border-color: #a0a0a0;
+    color: #be1212;
+}
+
+/* Player 2 checkers (brown/dark) */
+.checker.player2 {
+    background: radial-gradient(circle at 30% 30%, #cb0e12, #4e0e0e);
+    border-color: #1a1410;
+    color: #f0f0f0;
+}
+
+/* Stacked checkers display count */
+.checker.stacked::after {
+    content: attr(data-count);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Bearoff areas */
+.bearoff-area {
+    background-color: #654321;
+    border: 3px solid #4a3219;
+    border-radius: 5px;
+    padding: 10px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.bearoff-label {
+    font-weight: bold;
+    color: #d4af37;
+    writing-mode: horizontal-tb;
+    font-size: 0.9em;
+}
+
+.bearoff-area .checkers-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    flex: 1;
+}
+
+.bearoff-area .checker {
+    width: 30px;
+    height: 30px;
+    margin: 0;
+}
+
+.bar .checkers-container {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+}
+
+.bar .checker {
+    width: 35px;
+    height: 35px;
+    margin: 0;
+}
+
+/* Sidebar */
+.sidebar {
+    background-color: #34495e;
+    border-radius: 10px;
+    padding: 20px;
+    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sidebar h3 {
+    color: #f39c12;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+/* Dice area */
+.dice-area {
+    text-align: center;
+}
+
+.dice-display {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.die {
+    width: 50px;
+    height: 50px;
+    background-color: #ecf0f1;
+    border: 2px solid #95a5a6;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+    font-weight: bold;
+    color: #2c3e50;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.die.player1 {
+    background-color: #ffffff;
+    border-color: #a0a0a0;
+    color: #2c3e50;
+}
+
+.die.player2 {
+    background-color: #4a3219;
+    border-color: #2d1f13;
+    color: #f0f0f0;
+}
+
+.die.empty {
+    background-color: #7f8c8d;
+    border-color: #5f6c6d;
+}
+
+.remaining-moves {
+    font-size: 0.9em;
+    color: #bdc3c7;
+    margin-top: 5px;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    font-weight: bold;
+}
+
+.btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #27ae60;
+}
+
+.btn-secondary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+/* History panel */
+.history-panel {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.history-list {
+    background-color: #2c3e50;
+    border-radius: 5px;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 0.9em;
+    flex: 1;
+}
+
+.history-item {
+    padding: 5px;
+    margin-bottom: 5px;
+    background-color: #34495e;
+    border-radius: 3px;
+    border-left: 3px solid #3498db;
+}
+
+.history-item.player1-move {
+    border-left-color: #ecf0f1;
+}
+
+.history-item.player2-move {
+    border-left-color: #8b4513;
+}
+
+/* Scrollbar styling */
+.history-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.history-list::-webkit-scrollbar-track {
+    background: #1a252f;
+    border-radius: 4px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+    background: #3498db;
+    border-radius: 4px;
+}
+
+.history-list::-webkit-scrollbar-thumb:hover {
+    background: #2980b9;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .main-game {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .sidebar {
+        width: 100%;
+        max-width: 600px;
+    }
+}
+
+@media (max-width: 768px) {
+    .point {
+        width: 35px;
+        height: 150px;
+    }
+
+    .point::before {
+        border-left-width: 17.5px;
+        border-right-width: 17.5px;
+        border-top-width: 130px;
+        border-bottom-width: 130px;
+    }
+
+    .checker {
+        width: 30px;
+        height: 30px;
+        font-size: 0.7em;
+    }
+
+    .bar {
+        width: 40px;
+    }
+
+    .bar-spacer {
+        width: 40px;
+    }
+}
+

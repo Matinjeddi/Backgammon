@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backgammon Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>Backgammon</h1>
+            <div class="status-display" id="statusDisplay">Player 1's turn - Roll dice</div>
+        </div>
+
+        <div class="main-game">
+            <div class="board-wrapper">
+                <!-- Player 2 bearoff area (top) -->
+                <div class="bearoff-area bearoff-player2" id="bearoffPlayer2" data-point="bearoff-2">
+                    <div class="bearoff-label">Player 1 Off</div>
+                    <div class="checkers-container"></div>
+                </div>
+
+                <div class="board">
+                    <!-- Top half of board (points 13-24) -->
+                    <div class="board-half board-top">
+                        <!-- Right quadrant (points 13-18) -->
+                        <div class="quadrant quadrant-top-right">
+                            <div class="point point-down" data-point="13"></div>
+                            <div class="point point-down" data-point="14"></div>
+                            <div class="point point-down" data-point="15"></div>
+                            <div class="point point-down" data-point="16"></div>
+                            <div class="point point-down" data-point="17"></div>
+                            <div class="point point-down" data-point="18"></div>
+                        </div>
+
+                        <!-- Bar (middle area for hit checkers) -->
+                        <div class="bar" id="bar" data-point="bar">
+                            <div class="bar-label">BAR</div>
+                            <div class="checkers-container"></div>
+                        </div>
+
+                        <!-- Left quadrant (points 19-24) -->
+                        <div class="quadrant quadrant-top-left">
+                            <div class="point point-down" data-point="19"></div>
+                            <div class="point point-down" data-point="20"></div>
+                            <div class="point point-down" data-point="21"></div>
+                            <div class="point point-down" data-point="22"></div>
+                            <div class="point point-down" data-point="23"></div>
+                            <div class="point point-down" data-point="24"></div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom half of board (points 12-1) -->
+                    <div class="board-half board-bottom">
+                        <!-- Right quadrant (points 12-7) -->
+                        <div class="quadrant quadrant-bottom-right">
+                            <div class="point point-up" data-point="12"></div>
+                            <div class="point point-up" data-point="11"></div>
+                            <div class="point point-up" data-point="10"></div>
+                            <div class="point point-up" data-point="9"></div>
+                            <div class="point point-up" data-point="8"></div>
+                            <div class="point point-up" data-point="7"></div>
+                        </div>
+
+                        <!-- Bar section (already in top half, spacer for alignment) -->
+                        <div class="bar-spacer"></div>
+
+                        <!-- Left quadrant (points 6-1) -->
+                        <div class="quadrant quadrant-bottom-left">
+                            <div class="point point-up" data-point="6"></div>
+                            <div class="point point-up" data-point="5"></div>
+                            <div class="point point-up" data-point="4"></div>
+                            <div class="point point-up" data-point="3"></div>
+                            <div class="point point-up" data-point="2"></div>
+                            <div class="point point-up" data-point="1"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player 1 bearoff area (bottom) -->
+                <div class="bearoff-area bearoff-player1" id="bearoffPlayer1" data-point="bearoff-1">
+                    <div class="bearoff-label">Player 2 Off</div>
+                    <div class="checkers-container"></div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <!-- Dice display -->
+                <div class="dice-area">
+                    <h3>Dice</h3>
+                    <div class="dice-display" id="diceDisplay">
+                        <div class="die" id="die1"></div>
+                        <div class="die" id="die2"></div>
+                    </div>
+                    <div class="remaining-moves" id="remainingMoves"></div>
+                </div>
+
+                <!-- Control buttons -->
+                <div class="controls">
+                    <button id="rollDiceBtn" class="btn btn-primary">Roll Dice</button>
+                    <button id="undoBtn" class="btn btn-secondary" disabled>Undo Move</button>
+                    <button id="newGameBtn" class="btn btn-secondary">New Game</button>
+                </div>
+
+                <!-- Move history -->
+                <div class="history-panel">
+                    <h3>Move History</h3>
+                    <div class="history-list" id="historyList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reference: HTML structure based on standard DOM practices from MDN Web Docs -->
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTML -->
+    <script src="game.js"></script>
+    <script src="ui.js"></script>
+</body>
+</html>
+

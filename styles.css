@@ -258,9 +258,16 @@ body {
     cursor: pointer;
 }
 
-.bearoff-label {
+.bearoff-label-player1 {
     font-weight: bold;
-    color: #23db42;
+    color: #ffffff;
+    writing-mode: horizontal-tb;
+    font-size: 0.9em;
+}
+
+.bearoff-label-player2 {
+    font-weight: bold;
+    color: #be1212;
     writing-mode: horizontal-tb;
     font-size: 0.9em;
 }

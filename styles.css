@@ -147,13 +147,13 @@ body {
 
 /* Alternating point colors */
 .point:nth-child(odd)::before {
-    border-top-color: #a48623;
-    border-bottom-color: #d4af37;
+    border-top-color: #c61c1c;
+    border-bottom-color: #ffffff;
 }
 
 .point:nth-child(even)::before {
-    border-top-color: #1a1a1a;
-    border-bottom-color: #1a1a1a;
+    border-top-color: #ffffff;
+    border-bottom-color: #c61c1c;
 }
 
 /* Point highlighting states */
@@ -223,7 +223,7 @@ body {
 
 /* Bearoff areas */
 .bearoff-area {
-    background-color: #654321;
+    background-color: #030904;
     border: 3px solid #4a3219;
     border-radius: 5px;
     padding: 10px;
@@ -236,7 +236,7 @@ body {
 
 .bearoff-label {
     font-weight: bold;
-    color: #d4af37;
+    color: #23db42;
     writing-mode: horizontal-tb;
     font-size: 0.9em;
 }
@@ -318,8 +318,8 @@ body {
 }
 
 .die.player2 {
-    background-color: #4a3219;
-    border-color: #2d1f13;
+    background-color: #b91b1b;
+    border-color: #1f0b0b;
     color: #f0f0f0;
 }
 

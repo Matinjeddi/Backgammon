@@ -71,6 +71,21 @@ const BackgammonAI = (function() {
     }
 
     /**
+     * Check if Player 1 is in the opening position (starting position)
+     * Player 1 opening position: 2 on 1, 5 on 12, 3 on 17, 5 on 19
+     * If Player 1 is still in opening position, it means Player 2 started the game
+     */
+    function isPlayer1OpeningPosition(gameState) {
+        // Check Player 1 starting position
+        return gameState.board[1].player === 1 && gameState.board[1].count === 2 &&
+               gameState.board[12].player === 1 && gameState.board[12].count === 5 &&
+               gameState.board[17].player === 1 && gameState.board[17].count === 3 &&
+               gameState.board[19].player === 1 && gameState.board[19].count === 5 &&
+               gameState.bar.player1 === 0 &&
+               gameState.bearoff.player1 === 0;
+    }
+
+    /**
      * Get opening moves for the given dice values
      * Returns null if no opening move is found
      */
@@ -434,6 +449,95 @@ const BackgammonAI = (function() {
             !sequenceLeavesPlayer2HomeBoardBlot(gameState, sequence, player)
         );
         return safeSequences.length > 0 ? safeSequences : orderedSequences;
+    }
+
+    /**
+     * Check if a move sequence would result in more than 3 checkers on points 2 and 1
+     * This prevents the AI from over-stacking these critical points
+     */
+    function sequenceExceedsStackLimit(gameState, sequence, player) {
+        if (player !== 2 || !sequence || sequence.length === 0) {
+            return false;
+        }
+        const { state } = applySequenceAndScore(gameState, sequence, player);
+        // Check points 2 and 1 for Player 2 (AI)
+        if (state.board[2].player === 2 && state.board[2].count > 3) {
+            return true;
+        }
+        if (state.board[1].player === 2 && state.board[1].count > 3) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Enforce the rule that AI cannot stack more than 3 checkers on points 2 and 1
+     */
+    function enforceStackLimitOnPoints2And1(gameState, orderedSequences, player) {
+        if (player !== 2) {
+            return orderedSequences;
+        }
+        const validSequences = orderedSequences.filter(sequence => 
+            !sequenceExceedsStackLimit(gameState, sequence, player)
+        );
+        return validSequences.length > 0 ? validSequences : orderedSequences;
+    }
+
+    /**
+     * Count how many made points (2+ checkers) Player 2 has in their home board (points 1-6)
+     */
+    function countMadePointsInHomeBoard(gameState, player) {
+        if (player !== 2) {
+            return 0;
+        }
+        let madePoints = 0;
+        for (let i = 1; i <= 6; i++) {
+            if (gameState.board[i].player === 2 && gameState.board[i].count >= 2) {
+                madePoints++;
+            }
+        }
+        return madePoints;
+    }
+
+    /**
+     * Check if a move sequence uses checkers from outside the home board (points 7-24)
+     */
+    function sequenceUsesCheckersOutsideHomeBoard(sequence, player) {
+        if (player !== 2 || !sequence || sequence.length === 0) {
+            return false;
+        }
+        for (let move of sequence) {
+            // Check if move starts from outside home board (points 7-24) or from bar
+            if (move.from === 'bar') {
+                return true; // Entering from bar counts as using checker outside home board
+            }
+            if (typeof move.from === 'number' && move.from >= 7 && move.from <= 24) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Enforce the rule that AI must play checkers from outside home board (7-24)
+     * when they have made more than 2 points in their home board (1-6)
+     */
+    function enforcePlayCheckersOutsideHomeBoard(gameState, orderedSequences, player) {
+        if (player !== 2) {
+            return orderedSequences;
+        }
+        
+        const madePoints = countMadePointsInHomeBoard(gameState, player);
+        
+        // If more than 2 made points in home board, filter to only sequences using checkers outside
+        if (madePoints > 2) {
+            const validSequences = orderedSequences.filter(sequence => 
+                sequenceUsesCheckersOutsideHomeBoard(sequence, player)
+            );
+            return validSequences.length > 0 ? validSequences : orderedSequences;
+        }
+        
+        return orderedSequences;
     }
 
     /**
@@ -902,7 +1006,7 @@ const BackgammonAI = (function() {
             anchorWeight = 1;
             distributionWeight = 1;
             raceWeight = 2;
-            crunchWeight = 0; // Never crunch - disabled
+            crunchWeight = 100; // Never crunch - disabled
         } else if (phase === 'BACKGAME') {
             // In backgame, anchors and primes are important
             pipWeight = 0.2;
@@ -914,7 +1018,7 @@ const BackgammonAI = (function() {
             anchorWeight = 20;
             distributionWeight = 2;
             raceWeight = 0.5;
-            crunchWeight = 0; // Never crunch - disabled
+            crunchWeight = 100; // Never crunch - disabled
         } else {
             // CONTACT game - balanced weights
             pipWeight = 0.3;
@@ -926,7 +1030,7 @@ const BackgammonAI = (function() {
             anchorWeight = 15;
             distributionWeight = 3;
             raceWeight = 1;
-            crunchWeight = 0; // Never crunch - disabled
+            crunchWeight = 100; // Never crunch - disabled
         }
 
         // 1. Pip count (lower is better)
@@ -1148,7 +1252,9 @@ const BackgammonAI = (function() {
         // Limit search space for performance
         const sequencesToSearch = moveSequences.slice(0, MAX_SEQUENCES_TO_SEARCH);
         const orderedSequences = orderMovesByEvaluation(sequencesToSearch, gameState, player);
-        const safeSequences = enforcePlayer2HomeBoardSafety(gameState, orderedSequences, player);
+        const safeSequences = enforcePlayCheckersOutsideHomeBoard(gameState,
+            enforceStackLimitOnPoints2And1(gameState, 
+            enforcePlayer2HomeBoardSafety(gameState, orderedSequences, player), player), player);
 
         let bestScore = player === 2 ? -Infinity : Infinity;
 
@@ -1177,8 +1283,9 @@ const BackgammonAI = (function() {
         const player = 2;
         const availableMoves = gameState.availableMoves;
         
-        // Check if it's the opening position - if so, use predefined opening moves
-        if (isOpeningPosition(gameState)) {
+        // Only use opening moves if Player 2 started the game
+        // If Player 1 is still in opening position, it means Player 2 started
+        if (isOpeningPosition(gameState) && isPlayer1OpeningPosition(gameState)) {
             const openingMove = getOpeningMove(availableMoves);
             if (openingMove) {
                 return openingMove;
@@ -1200,7 +1307,9 @@ const BackgammonAI = (function() {
 
         // Order moves by quick evaluation for better pruning
         const orderedSequences = orderMovesByEvaluation(sequencesToEvaluate, gameState, player);
-        const safeSequences = enforcePlayer2HomeBoardSafety(gameState, orderedSequences, player);
+        const safeSequences = enforcePlayCheckersOutsideHomeBoard(gameState,
+            enforceStackLimitOnPoints2And1(gameState, 
+            enforcePlayer2HomeBoardSafety(gameState, orderedSequences, player), player), player);
 
         let bestSequence = null;
         let bestScore = -Infinity;

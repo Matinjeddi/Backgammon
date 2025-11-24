@@ -184,6 +184,12 @@ body {
     z-index: 2;
 }
 
+.bearoff-area.valid-destination {
+    background-color: rgba(46, 204, 113, 0.3);
+    border-color: #2ecc71;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+}
+
 .bearoff-area.staged-destination {
     border-color: #f1c40f;
     box-shadow: 0 0 15px rgba(241, 196, 15, 0.6);

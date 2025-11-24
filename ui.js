@@ -240,7 +240,7 @@ const BackgammonUI = (function() {
             }
         }
 
-        // Highlight valid destinations
+        // Highlight valid destinations (points only - bearoff is handled in renderBearoff)
         if (state.selectedPoint !== null) {
             const validMoves = BackgammonGame.getValidMovesFromPoint(state.selectedPoint);
             validMoves.forEach(move => {
@@ -251,15 +251,6 @@ const BackgammonUI = (function() {
                     }
                 }
             });
-
-            // Highlight bearoff if valid
-            // Reference: Player 1 uses bearoffPlayer2 element (top), Player 2 uses bearoffPlayer1 element (bottom)
-            const hasBearoffMove = validMoves.some(move => move.to === 'bearoff');
-            if (hasBearoffMove) {
-                const bearoffElementId = state.currentPlayer === 1 ? 'bearoffPlayer2' : 'bearoffPlayer1';
-                const bearoffElement = document.getElementById(bearoffElementId);
-                bearoffElement.classList.add('valid-destination');
-            }
         }
     }
 
@@ -353,9 +344,21 @@ const BackgammonUI = (function() {
             bearoff2Container.appendChild(checker);
         }
 
-        // Remove highlighting
+        // Remove highlighting first
         elements.bearoffPlayer1.classList.remove('valid-destination');
         elements.bearoffPlayer2.classList.remove('valid-destination');
+
+        // Add highlighting if bearoff is a valid destination
+        if (state.selectedPoint !== null) {
+            const validMoves = BackgammonGame.getValidMovesFromPoint(state.selectedPoint);
+            const hasBearoffMove = validMoves.some(move => move.to === 'bearoff');
+            if (hasBearoffMove) {
+                // Reference: Player 1 uses bearoffPlayer2 element (top), Player 2 uses bearoffPlayer1 element (bottom)
+                const bearoffElementId = state.currentPlayer === 1 ? 'bearoffPlayer2' : 'bearoffPlayer1';
+                const bearoffElement = document.getElementById(bearoffElementId);
+                bearoffElement.classList.add('valid-destination');
+            }
+        }
     }
 
     /**

@@ -31,10 +31,66 @@ const BackgammonAI = (function() {
     const NO_CONTACT_HOME_BOARD_MOVE_BONUS = 2000; // Bonus per checker moved into home board during no-contact
     const BEAROFF_BONUS = 15000; // High bonus for bearing off when all checkers are in home board
 
+    // Opening moves lookup table - predefined moves for the opening roll
+    // Format: key is sorted dice values (e.g., "1,2" for dice 1 and 2), value is array of moves
+    const OPENING_MOVES = {
+        '1,2': [{ from: 24, to: 23, die: 1 }, { from: 13, to: 11, die: 2 }],
+        '1,3': [{ from: 8, to: 5, die: 3 }, { from: 6, to: 5, die: 1 }],
+        '1,4': [{ from: 13, to: 9, die: 4 }, { from: 24, to: 23, die: 1 }],
+        '1,5': [{ from: 13, to: 8, die: 5 }, { from: 24, to: 23, die: 1 }],
+        '1,6': [{ from: 13, to: 7, die: 6 }, { from: 8, to: 7, die: 1 }],
+        '2,3': [{ from: 13, to: 11, die: 2 }, { from: 24, to: 21, die: 3 }],
+        '2,4': [{ from: 8, to: 4, die: 4 }, { from: 6, to: 4, die: 2 }],
+        '2,5': [{ from: 13, to: 8, die: 5 }, { from: 24, to: 22, die: 2 }],
+        '2,6': [{ from: 24, to: 18, die: 6 }, { from: 13, to: 11, die: 2 }],
+        '3,4': [{ from: 24, to: 21, die: 3 }, { from: 13, to: 9, die: 4 }],
+        '3,5': [{ from: 8, to: 3, die: 5 }, { from: 6, to: 3, die: 3 }],
+        '3,6': [{ from: 24, to: 18, die: 6 }, { from: 13, to: 10, die: 3 }],
+        '4,5': [{ from: 24, to: 20, die: 4 }, { from: 13, to: 8, die: 5 }],
+        '4,6': [{ from: 24, to: 18, die: 6 }, { from: 13, to: 9, die: 4 }],
+        '5,6': [{ from: 24, to: 18, die: 6 }, { from: 18, to: 13, die: 5 }]
+    };
+
     // Position evaluation cache
     let positionCache = new Map();
     let cacheHits = 0;
     let cacheMisses = 0;
+
+    /**
+     * Check if the board is in the opening position (starting position)
+     * Player 2 opening position: 2 on 24, 5 on 13, 3 on 8, 5 on 6
+     */
+    function isOpeningPosition(gameState) {
+        // Check Player 2 starting position
+        return gameState.board[24].player === 2 && gameState.board[24].count === 2 &&
+               gameState.board[13].player === 2 && gameState.board[13].count === 5 &&
+               gameState.board[8].player === 2 && gameState.board[8].count === 3 &&
+               gameState.board[6].player === 2 && gameState.board[6].count === 5 &&
+               gameState.bar.player2 === 0 &&
+               gameState.bearoff.player2 === 0;
+    }
+
+    /**
+     * Get opening moves for the given dice values
+     * Returns null if no opening move is found
+     */
+    function getOpeningMove(availableMoves) {
+        if (availableMoves.length !== 2) {
+            return null; // Opening moves only apply to two dice
+        }
+
+        // Sort dice values to match lookup key format
+        const sortedDice = [...availableMoves].sort((a, b) => a - b);
+        const key = `${sortedDice[0]},${sortedDice[1]}`;
+        
+        const openingMove = OPENING_MOVES[key];
+        if (!openingMove) {
+            return null;
+        }
+
+        // Return a copy of the moves
+        return openingMove.map(move => ({ ...move }));
+    }
 
     /**
      * Generate all possible move sequences from current position
@@ -1120,6 +1176,15 @@ const BackgammonAI = (function() {
     function getBestMove(gameState) {
         const player = 2;
         const availableMoves = gameState.availableMoves;
+        
+        // Check if it's the opening position - if so, use predefined opening moves
+        if (isOpeningPosition(gameState)) {
+            const openingMove = getOpeningMove(availableMoves);
+            if (openingMove) {
+                return openingMove;
+            }
+            // If no opening move found for these dice, fall through to normal AI
+        }
         
         // Generate all possible move sequences
         const moveSequences = generateAllMoveSequences(gameState, availableMoves, player);

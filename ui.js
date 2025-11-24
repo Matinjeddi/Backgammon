@@ -33,6 +33,8 @@ const BackgammonUI = (function() {
             historyList: document.getElementById('historyList')
         };
 
+        addPointLabels();
+
         // Attach event listeners
         elements.rollDiceBtn.addEventListener('click', handleRollDice);
         elements.confirmBtn.addEventListener('click', handleConfirm);
@@ -48,6 +50,21 @@ const BackgammonUI = (function() {
 
         // Initial render
         render();
+    }
+
+    /**
+     * Ensure every board point renders its number label
+     */
+    function addPointLabels() {
+        elements.points.forEach(point => {
+            let label = point.querySelector('.point-label');
+            if (!label) {
+                label = document.createElement('div');
+                label.className = 'point-label';
+                point.appendChild(label);
+            }
+            label.textContent = point.dataset.point;
+        });
     }
 
     /**

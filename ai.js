@@ -12,21 +12,24 @@ const BackgammonAI = (function() {
     const MAX_SEARCH_DEPTH = 2; // Keep shallow for speed
     const MAX_SEQUENCES_TO_SEARCH = 50; // Limit search space
     const CACHE_SIZE = 1000; // Position evaluation cache
-    const PLAYER1_HOME_START_POINT = 18; // Points 18-24 are Player 1's home board
-    const PLAYER1_HOME_END_POINT = 24;
+    const PLAYER1_HOME_START_POINT = 1; // Player 1 home board spans points 6→1 (numeric range 1-6)
+    const PLAYER1_HOME_END_POINT = 6;
     const HIGH_PRIORITY_HIT_BONUS = 20000; // Strongly prefer hitting outside Player 1 home
     const KEY_POINT_PRIORITIES = [
-        { point: 20, weight: 1.0 }, // Highest priority
-        { point: 5, weight: 0.9 },
-        { point: 21, weight: 0.7 },
-        { point: 4, weight: 0.65 },
-        { point: 19, weight: 0.6 },
-        { point: 7, weight: 0.55 }
+        { point: 5, weight: 1.0 },   // Highest priority
+        { point: 20, weight: 0.9 },
+        { point: 4, weight: 0.7 },
+        { point: 21, weight: 0.65 },
+        { point: 7, weight: 0.6 },
+        { point: 18, weight: 0.55 }
     ];
     const KEY_POINT_STACK_BONUS = 1200; // Bonus when AI makes (2+) a key point
     const KEY_POINT_SINGLE_BONUS = 450; // Bonus for occupying with a single checker
     const KEY_POINT_OPPONENT_BLOCK_PENALTY = 1400; // Penalty when opponent locks the point
     const KEY_POINT_OPPONENT_BLOT_PENALTY = 700; // Penalty while opponent blot sits there (encourage hits)
+    const NO_CONTACT_HOME_BOARD_BONUS = 5000; // High bonus for moving checkers into home board when no contact
+    const NO_CONTACT_HOME_BOARD_MOVE_BONUS = 2000; // Bonus per checker moved into home board during no-contact
+    const BEAROFF_BONUS = 15000; // High bonus for bearing off when all checkers are in home board
 
     // Position evaluation cache
     let positionCache = new Map();
@@ -446,6 +449,24 @@ const BackgammonAI = (function() {
     }
 
     /**
+     * Check if there's no contact on Player 2's side (points 12-1)
+     * No contact means no opponent checkers on Player 2's side of the board
+     */
+    function hasNoContactOnPlayer2Side(gameState) {
+        // Check points 12-1 for any Player 1 checkers
+        for (let i = 1; i <= 12; i++) {
+            if (gameState.board[i].player === 1 && gameState.board[i].count > 0) {
+                return false; // Contact exists
+            }
+        }
+        // Also check if Player 1 has checkers on bar (they could enter on Player 2's side)
+        if (gameState.bar.player1 > 0) {
+            return false; // Potential contact
+        }
+        return true; // No contact
+    }
+
+    /**
      * Enhanced pip count calculation
      */
     function calculatePipCount(gameState, player) {
@@ -825,7 +846,7 @@ const BackgammonAI = (function() {
             anchorWeight = 1;
             distributionWeight = 1;
             raceWeight = 2;
-            crunchWeight = 25; // High penalty for crunching during bearoff
+            crunchWeight = 0; // Never crunch - disabled
         } else if (phase === 'BACKGAME') {
             // In backgame, anchors and primes are important
             pipWeight = 0.2;
@@ -837,7 +858,7 @@ const BackgammonAI = (function() {
             anchorWeight = 20;
             distributionWeight = 2;
             raceWeight = 0.5;
-            crunchWeight = 10; // Moderate penalty
+            crunchWeight = 0; // Never crunch - disabled
         } else {
             // CONTACT game - balanced weights
             pipWeight = 0.3;
@@ -849,7 +870,7 @@ const BackgammonAI = (function() {
             anchorWeight = 15;
             distributionWeight = 3;
             raceWeight = 1;
-            crunchWeight = 15; // Moderate-high penalty
+            crunchWeight = 0; // Never crunch - disabled
         }
 
         // 1. Pip count (lower is better)
@@ -904,6 +925,19 @@ const BackgammonAI = (function() {
         // 11. Key point control (Points 20, 21, 19 preference for AI)
         score += evaluateKeyPointControl(gameState);
 
+        // 12. No-contact home board bonus (prioritize getting checkers into home board when no contact)
+        if (hasNoContactOnPlayer2Side(gameState)) {
+            // Count checkers in home board (points 6-1 for Player 2)
+            let homeBoardCheckers = 0;
+            for (let i = 1; i <= 6; i++) {
+                if (gameState.board[i].player === 2 && gameState.board[i].count > 0) {
+                    homeBoardCheckers += gameState.board[i].count;
+                }
+            }
+            // Bonus increases with more checkers in home board
+            score += homeBoardCheckers * (NO_CONTACT_HOME_BOARD_BONUS / 15);
+        }
+
         // Update cache
         updateCache(positionHash, score);
 
@@ -923,6 +957,85 @@ const BackgammonAI = (function() {
     }
 
     /**
+     * Calculate bonus for moving backmost checkers (points 18-24 for Player 2)
+     */
+    function calculateBackmostCheckerBonus(sequence, player) {
+        if (player !== 2) {
+            return 0;
+        }
+        
+        let bonus = 0;
+        for (let move of sequence) {
+            // Points 18-24 are the backmost for Player 2
+            if (typeof move.from === 'number' && move.from >= 18 && move.from <= 24) {
+                // Higher points (closer to 24) get more bonus
+                const pointBonus = (move.from - 17) * 50; // 50 for 18, 100 for 19, ..., 350 for 24
+                bonus += pointBonus;
+            }
+        }
+        return bonus;
+    }
+
+    /**
+     * Calculate bonus for moving checkers into home board when there's no contact
+     * Player 2's home board is points 6-1
+     */
+    function calculateNoContactHomeBoardBonus(gameState, sequence, player) {
+        if (player !== 2) {
+            return 0;
+        }
+
+        // Check if there's no contact
+        if (!hasNoContactOnPlayer2Side(gameState)) {
+            return 0;
+        }
+
+        let bonus = 0;
+        for (let move of sequence) {
+            // Check if move brings a checker into home board (points 6-1)
+            if (typeof move.to === 'number' && move.to >= 1 && move.to <= 6) {
+                // Check if the checker was moved from outside home board
+                if (typeof move.from === 'number' && move.from > 6) {
+                    // Higher bonus for moving from further away
+                    const distanceBonus = (move.from - 6) * NO_CONTACT_HOME_BOARD_MOVE_BONUS / 10;
+                    bonus += NO_CONTACT_HOME_BOARD_MOVE_BONUS + distanceBonus;
+                } else if (move.from === 'bar') {
+                    // Entering from bar into home board is also good
+                    bonus += NO_CONTACT_HOME_BOARD_MOVE_BONUS;
+                }
+            }
+        }
+        return bonus;
+    }
+
+    /**
+     * Calculate bonus for bearing off when all checkers are in home board
+     * This strongly prioritizes bearing off over other moves when ready
+     */
+    function calculateBearoffBonus(gameState, sequence, player) {
+        if (player !== 2) {
+            return 0;
+        }
+
+        // Check if all checkers are in home board
+        if (!allCheckersInHomeBoardForAI(gameState, player)) {
+            return 0;
+        }
+
+        // Count bearoff moves in the sequence
+        let bearoffCount = 0;
+        for (let move of sequence) {
+            if (move.to === 'bearoff') {
+                bearoffCount++;
+            }
+        }
+
+        // Return bonus proportional to number of checkers borne off
+        // Higher bonus encourages bearing off over playing within home board
+        return bearoffCount * BEAROFF_BONUS;
+    }
+
+    /**
      * Order moves by evaluation to improve alpha-beta pruning
      */
     function orderMovesByEvaluation(sequences, gameState, player) {
@@ -932,7 +1045,11 @@ const BackgammonAI = (function() {
             }
 
             const { state: resultingState, hitPriorityScore } = applySequenceAndScore(gameState, sequence, player);
-            const score = evaluatePosition(resultingState) + hitPriorityScore;
+            const positionScore = evaluatePosition(resultingState);
+            const backmostBonus = calculateBackmostCheckerBonus(sequence, player);
+            const noContactHomeBonus = calculateNoContactHomeBoardBonus(gameState, sequence, player);
+            const bearoffBonus = calculateBearoffBonus(gameState, sequence, player);
+            const score = positionScore + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus;
             return { sequence, score };
         });
 
@@ -1031,12 +1148,15 @@ const BackgammonAI = (function() {
             if (sequence.length === 0) continue;
 
             const { state: resultingState, hitPriorityScore } = applySequenceAndScore(gameState, sequence, player);
+            const backmostBonus = calculateBackmostCheckerBonus(sequence, player);
+            const noContactHomeBonus = calculateNoContactHomeBoardBonus(gameState, sequence, player);
+            const bearoffBonus = calculateBearoffBonus(gameState, sequence, player);
 
             let score;
             if (useSearch) {
-                score = evaluateWithLookahead(resultingState, MAX_SEARCH_DEPTH, player) + hitPriorityScore;
+                score = evaluateWithLookahead(resultingState, MAX_SEARCH_DEPTH, player) + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus;
             } else {
-                score = evaluatePosition(resultingState) + hitPriorityScore;
+                score = evaluatePosition(resultingState) + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus;
             }
             
             if (score > bestScore) {

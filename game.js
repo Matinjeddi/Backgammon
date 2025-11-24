@@ -21,7 +21,8 @@ const BackgammonGame = (function() {
         moveHistory: [],
         selectedPoint: null,
         gameHistory: [], // For undo functionality
-        openingRoll: { player1: null, player2: null } // For initial roll
+        openingRoll: { player1: null, player2: null }, // For initial roll
+        stagedMove: { from: null, to: null } // For confirm button feature
     };
 
     /**
@@ -41,6 +42,7 @@ const BackgammonGame = (function() {
         state.selectedPoint = null;
         state.gameHistory = [];
         state.openingRoll = { player1: null, player2: null };
+        state.stagedMove = { from: null, to: null };
 
         // Standard backgammon starting position
         // Player 1 moves from 1 to 24, Player 2 moves from 24 to 1
@@ -354,6 +356,45 @@ const BackgammonGame = (function() {
     }
 
     /**
+     * Stage a move for confirmation
+     */
+    function stageMove(from, to) {
+        const validMoves = getValidMovesFromPoint(from);
+        const validMove = validMoves.find(m => m.to === to);
+
+        if (!validMove) {
+            return { success: false, message: 'Invalid move' };
+        }
+
+        state.stagedMove = { from: from, to: to };
+        return { success: true };
+    }
+
+    /**
+     * Clear the staged move
+     */
+    function clearStagedMove() {
+        state.stagedMove = { from: null, to: null };
+    }
+
+    /**
+     * Confirm and execute the staged move
+     */
+    function confirmMove() {
+        if (state.stagedMove.from === null || state.stagedMove.to === null) {
+            return { success: false, message: 'No move to confirm' };
+        }
+
+        const result = executeMove(state.stagedMove.from, state.stagedMove.to);
+        
+        if (result.success) {
+            clearStagedMove();
+        }
+        
+        return result;
+    }
+
+    /**
      * Execute a move
      */
     function executeMove(from, to) {
@@ -444,11 +485,7 @@ const BackgammonGame = (function() {
             return { success: true, gameOver: true, winner: player };
         }
 
-        // Check if no more moves available
-        if (state.availableMoves.length === 0 || !hasAnyValidMoves()) {
-            switchPlayer();
-        }
-
+        // Don't auto-switch - player must confirm end of turn
         return { success: true };
     }
 
@@ -470,9 +507,18 @@ const BackgammonGame = (function() {
         state.availableMoves = [];
         state.phase = 'ROLL';
         state.selectedPoint = null;
+        clearStagedMove();
         
         // Clear undo history when switching players
         state.gameHistory = [];
+    }
+
+    /**
+     * End current player's turn and switch to next player
+     */
+    function endTurn() {
+        switchPlayer();
+        return { success: true };
     }
 
     /**
@@ -528,11 +574,15 @@ const BackgammonGame = (function() {
         initializeGame,
         rollDice,
         executeMove,
+        stageMove,
+        confirmMove,
+        clearStagedMove,
         undoMove,
         getState,
         getValidMovesFromPoint,
         selectPoint,
-        deselectPoint
+        deselectPoint,
+        endTurn
     };
 })();
 

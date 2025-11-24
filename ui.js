@@ -25,6 +25,7 @@ const BackgammonUI = (function() {
             remainingMoves: document.getElementById('remainingMoves'),
             statusDisplay: document.getElementById('statusDisplay'),
             rollDiceBtn: document.getElementById('rollDiceBtn'),
+            confirmBtn: document.getElementById('confirmBtn'),
             undoBtn: document.getElementById('undoBtn'),
             newGameBtn: document.getElementById('newGameBtn'),
             historyList: document.getElementById('historyList')
@@ -32,6 +33,7 @@ const BackgammonUI = (function() {
 
         // Attach event listeners
         elements.rollDiceBtn.addEventListener('click', handleRollDice);
+        elements.confirmBtn.addEventListener('click', handleConfirm);
         elements.undoBtn.addEventListener('click', handleUndo);
         elements.newGameBtn.addEventListener('click', handleNewGame);
 
@@ -69,12 +71,29 @@ const BackgammonUI = (function() {
     }
 
     /**
+     * Handle confirm button click (End Turn)
+     */
+    function handleConfirm() {
+        const state = BackgammonGame.getState();
+        
+        // Clear any staged move and selections
+        BackgammonGame.clearStagedMove();
+        BackgammonGame.deselectPoint();
+        
+        // End turn - switch to next player
+        BackgammonGame.endTurn();
+        
+        render();
+    }
+
+    /**
      * Handle undo button click
      */
     function handleUndo() {
         const result = BackgammonGame.undoMove();
         
         if (result.success) {
+            BackgammonGame.clearStagedMove();
             render();
         }
     }
@@ -85,6 +104,7 @@ const BackgammonUI = (function() {
     function handleNewGame() {
         if (confirm('Start a new game? Current game will be lost.')) {
             BackgammonGame.initializeGame();
+            BackgammonGame.clearStagedMove();
             render();
         }
     }
@@ -139,14 +159,14 @@ const BackgammonUI = (function() {
                 render();
             }
         } 
-        // If point already selected, try to move or deselect
+        // If point already selected, try to execute move or deselect
         else {
             // If clicking the same point, deselect
             if (state.selectedPoint === pointId) {
                 BackgammonGame.deselectPoint();
                 render();
             }
-            // Otherwise, try to move to this point
+            // Otherwise, try to execute this move
             else {
                 const result = BackgammonGame.executeMove(state.selectedPoint, pointId);
                 
@@ -393,8 +413,46 @@ const BackgammonUI = (function() {
         // Roll dice button (enabled for both OPENING_ROLL and ROLL phases)
         elements.rollDiceBtn.disabled = state.phase !== 'ROLL' && state.phase !== 'OPENING_ROLL';
 
+        // Confirm button (enabled only when all moves are exhausted or no valid moves remain)
+        const noMovesLeft = state.availableMoves.length === 0;
+        const noValidMoves = state.phase === 'MOVE' && state.availableMoves.length > 0 && !hasAnyValidMovesUI();
+        elements.confirmBtn.disabled = state.phase !== 'MOVE' || (!noMovesLeft && !noValidMoves);
+
         // Undo button
         elements.undoBtn.disabled = state.gameHistory.length === 0 || state.phase === 'GAME_OVER';
+    }
+    
+    /**
+     * Check if player has any valid moves (UI helper)
+     */
+    function hasAnyValidMovesUI() {
+        const state = BackgammonGame.getState();
+        const player = state.currentPlayer;
+        
+        // If checkers on bar, must enter first
+        if (state.bar[`player${player}`] > 0) {
+            const uniqueMoves = [...new Set(state.availableMoves)];
+            for (let move of uniqueMoves) {
+                const entryPoint = player === 1 ? move : (25 - move);
+                const validMoves = BackgammonGame.getValidMovesFromPoint('bar');
+                if (validMoves.length > 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Check all points for valid moves
+        for (let point = 1; point <= 24; point++) {
+            if (state.board[point].player === player && state.board[point].count > 0) {
+                const validMoves = BackgammonGame.getValidMovesFromPoint(point);
+                if (validMoves.length > 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -433,7 +491,11 @@ const BackgammonUI = (function() {
         } else if (state.phase === 'ROLL') {
             message = `Player ${state.currentPlayer}'s turn - Roll dice`;
         } else if (state.phase === 'MOVE') {
-            message = `Player ${state.currentPlayer}'s turn - Make your moves`;
+            if (state.availableMoves.length === 0 || !hasAnyValidMovesUI()) {
+                message = `Player ${state.currentPlayer}'s turn - No more moves. Click "Confirm"`;
+            } else {
+                message = `Player ${state.currentPlayer}'s turn - Make your moves`;
+            }
         }
 
         updateStatus(message);

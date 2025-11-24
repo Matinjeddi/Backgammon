@@ -415,6 +415,14 @@ body {
     background-color: #2980b9;
 }
 
+.btn-tertiary {
+    background-color: #c22929;
+    color: white;
+}
+.btn-tertiary:hover:not(:disabled) {
+    background-color: #9e2020;
+}
+
 /* History panel */
 .history-panel {
     flex: 1;

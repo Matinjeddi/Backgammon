@@ -421,8 +421,11 @@ const BackgammonUI = (function() {
         const noValidMoves = state.phase === 'MOVE' && state.availableMoves.length > 0 && !hasAnyValidMovesUI();
         elements.confirmBtn.disabled = state.phase !== 'MOVE' || (!noMovesLeft && !noValidMoves);
 
-        // Undo button
-        elements.undoBtn.disabled = state.gameHistory.length === 0 || state.phase === 'GAME_OVER';
+        // Undo button - only enable if there are moves to undo from current player's turn
+        const hasMovesToUndo = state.gameHistory.length > 0 && 
+            state.moveHistory.length > 0 && 
+            state.moveHistory[state.moveHistory.length - 1].player === state.currentPlayer;
+        elements.undoBtn.disabled = !hasMovesToUndo || state.phase === 'GAME_OVER';
     }
     
     /**

@@ -7,6 +7,8 @@ const BackgammonUI = (function() {
     'use strict';
 
     let elements = {};
+    let aiMoveTimeout = null;
+    let isAITurnInProgress = false;
 
     /**
      * Initialize UI and attach event listeners
@@ -67,6 +69,12 @@ const BackgammonUI = (function() {
                 updateStatus(`Player ${BackgammonGame.getState().currentPlayer} rolled ${result.dice[0]}, ${result.dice[1]} but has no valid moves. Turn skipped.`);
             }
             render();
+            
+            // Check if it's Player 2's turn (AI) and trigger AI moves
+            const state = BackgammonGame.getState();
+            if (state.currentPlayer === 2 && state.phase === 'MOVE' && !result.noMoves && !result.tied) {
+                scheduleAIMove();
+            }
         }
     }
 
@@ -84,6 +92,18 @@ const BackgammonUI = (function() {
         BackgammonGame.endTurn();
         
         render();
+        
+        // Check if it's now Player 2's turn (AI) and trigger AI
+        const newState = BackgammonGame.getState();
+        if (newState.currentPlayer === 2 && newState.phase === 'ROLL') {
+            // Auto-roll dice for AI
+            setTimeout(() => {
+                const currentState = BackgammonGame.getState();
+                if (currentState.currentPlayer === 2 && currentState.phase === 'ROLL') {
+                    handleRollDice();
+                }
+            }, 500);
+        }
     }
 
     /**
@@ -103,6 +123,13 @@ const BackgammonUI = (function() {
      */
     function handleNewGame() {
         if (confirm('Start a new game? Current game will be lost.')) {
+            // Clear any pending AI moves
+            if (aiMoveTimeout) {
+                clearTimeout(aiMoveTimeout);
+                aiMoveTimeout = null;
+            }
+            isAITurnInProgress = false;
+            
             BackgammonGame.initializeGame();
             BackgammonGame.clearStagedMove();
             render();
@@ -146,6 +173,11 @@ const BackgammonUI = (function() {
      */
     function handlePointClick(pointId) {
         const state = BackgammonGame.getState();
+
+        // Ignore clicks during AI turn
+        if (state.currentPlayer === 2 && isAITurnInProgress) {
+            return;
+        }
 
         if (state.phase !== 'MOVE') {
             return;
@@ -203,6 +235,155 @@ const BackgammonUI = (function() {
         renderControls(state);
         renderHistory(state);
         renderStatus(state);
+        
+        // Check if it's Player 2's turn (AI) and trigger dice roll if needed
+        if (state.currentPlayer === 2 && state.phase === 'ROLL' && !isAITurnInProgress) {
+            // Auto-roll dice for AI with a small delay to allow UI to update
+            setTimeout(() => {
+                const currentState = BackgammonGame.getState();
+                if (currentState.currentPlayer === 2 && currentState.phase === 'ROLL') {
+                    handleRollDice();
+                }
+            }, 500);
+        }
+        
+        // Check if it's Player 2's turn (AI) and trigger AI moves if needed
+        // Only trigger if we're in MOVE phase and not already processing
+        if (state.currentPlayer === 2 && state.phase === 'MOVE' && !isAITurnInProgress && state.availableMoves.length > 0) {
+            scheduleAIMove();
+        }
+    }
+
+    /**
+     * Schedule AI move execution with delay
+     */
+    function scheduleAIMove() {
+        if (isAITurnInProgress) {
+            return; // Already processing
+        }
+
+        const state = BackgammonGame.getState();
+        
+        // Only proceed if it's Player 2's turn and we're in MOVE phase
+        if (state.currentPlayer !== 2 || state.phase !== 'MOVE') {
+            return;
+        }
+
+        // Check if there are moves available
+        if (state.availableMoves.length === 0) {
+            // No moves left, auto-end turn
+            setTimeout(() => {
+                BackgammonGame.endTurn();
+                render();
+                // Auto-roll for next turn if it's still Player 2
+                const newState = BackgammonGame.getState();
+                if (newState.currentPlayer === 2 && newState.phase === 'ROLL') {
+                    setTimeout(() => handleRollDice(), 500);
+                }
+            }, 750);
+            return;
+        }
+
+        isAITurnInProgress = true;
+        updateStatus(`Player 2 (AI) is thinking...`);
+
+        // Use setTimeout to allow UI to update before AI calculation
+        setTimeout(() => {
+            executeAIMoves();
+        }, 100);
+    }
+
+    /**
+     * Execute AI moves with delay between each move
+     */
+    function executeAIMoves() {
+        const state = BackgammonGame.getState();
+        
+        // Safety check
+        if (state.currentPlayer !== 2 || state.phase !== 'MOVE') {
+            isAITurnInProgress = false;
+            return;
+        }
+
+        // Get current game state for AI
+        const gameState = {
+            board: state.board.map(p => ({ ...p })),
+            bar: { ...state.bar },
+            bearoff: { ...state.bearoff },
+            availableMoves: [...state.availableMoves],
+            currentPlayer: state.currentPlayer
+        };
+
+        // Get best move sequence from AI
+        const moveSequence = BackgammonAI.getBestMove(gameState);
+
+        if (!moveSequence || moveSequence.length === 0) {
+            // No moves available, end turn
+            isAITurnInProgress = false;
+            BackgammonGame.endTurn();
+            render();
+            const newState = BackgammonGame.getState();
+            if (newState.currentPlayer === 2 && newState.phase === 'ROLL') {
+                setTimeout(() => handleRollDice(), 500);
+            }
+            return;
+        }
+
+        // Execute moves one by one with delay
+        let moveIndex = 0;
+        
+        function executeNextMove() {
+            if (moveIndex >= moveSequence.length) {
+                // All moves executed, check if more moves are available
+                const currentState = BackgammonGame.getState();
+                if (currentState.currentPlayer === 2 && currentState.phase === 'MOVE' && currentState.availableMoves.length > 0) {
+                    // More moves available, continue
+                    isAITurnInProgress = false;
+                    scheduleAIMove();
+                } else {
+                    // No more moves, end turn
+                    isAITurnInProgress = false;
+                    BackgammonGame.endTurn();
+                    render();
+                    const newState = BackgammonGame.getState();
+                    if (newState.currentPlayer === 2 && newState.phase === 'ROLL') {
+                        setTimeout(() => handleRollDice(), 500);
+                    }
+                }
+                return;
+            }
+
+            const move = moveSequence[moveIndex];
+            const result = BackgammonGame.executeMove(move.from, move.to);
+
+            if (result.success) {
+                render();
+                
+                if (result.gameOver) {
+                    isAITurnInProgress = false;
+                    updateStatus(`Game Over! Player ${result.winner} wins!`);
+                    return;
+                }
+
+                moveIndex++;
+                
+                // Schedule next move with 750ms delay
+                aiMoveTimeout = setTimeout(executeNextMove, 750);
+            } else {
+                // Move failed, try to continue or end turn
+                isAITurnInProgress = false;
+                const currentState = BackgammonGame.getState();
+                if (currentState.currentPlayer === 2 && currentState.phase === 'MOVE' && currentState.availableMoves.length > 0) {
+                    scheduleAIMove();
+                } else {
+                    BackgammonGame.endTurn();
+                    render();
+                }
+            }
+        }
+
+        // Start executing moves
+        executeNextMove();
     }
 
     /**
@@ -413,19 +594,22 @@ const BackgammonUI = (function() {
      * Render controls (enable/disable buttons)
      */
     function renderControls(state) {
-        // Roll dice button (enabled for both OPENING_ROLL and ROLL phases)
-        elements.rollDiceBtn.disabled = state.phase !== 'ROLL' && state.phase !== 'OPENING_ROLL';
+        // Roll dice button (enabled for both OPENING_ROLL and ROLL phases, but disabled for Player 2 AI)
+        elements.rollDiceBtn.disabled = (state.phase !== 'ROLL' && state.phase !== 'OPENING_ROLL') || 
+                                       (state.currentPlayer === 2 && !isAITurnInProgress);
 
-        // Confirm button (enabled only when all moves are exhausted or no valid moves remain)
+        // Confirm button (enabled only when all moves are exhausted or no valid moves remain, disabled for Player 2 AI)
         const noMovesLeft = state.availableMoves.length === 0;
         const noValidMoves = state.phase === 'MOVE' && state.availableMoves.length > 0 && !hasAnyValidMovesUI();
-        elements.confirmBtn.disabled = state.phase !== 'MOVE' || (!noMovesLeft && !noValidMoves);
+        elements.confirmBtn.disabled = state.phase !== 'MOVE' || 
+                                       (!noMovesLeft && !noValidMoves) || 
+                                       state.currentPlayer === 2;
 
-        // Undo button - only enable if there are moves to undo from current player's turn
+        // Undo button - only enable if there are moves to undo from current player's turn, disabled for Player 2 AI
         const hasMovesToUndo = state.gameHistory.length > 0 && 
             state.moveHistory.length > 0 && 
             state.moveHistory[state.moveHistory.length - 1].player === state.currentPlayer;
-        elements.undoBtn.disabled = !hasMovesToUndo || state.phase === 'GAME_OVER';
+        elements.undoBtn.disabled = !hasMovesToUndo || state.phase === 'GAME_OVER' || state.currentPlayer === 2;
     }
     
     /**
@@ -495,12 +679,26 @@ const BackgammonUI = (function() {
                 return;
             }
         } else if (state.phase === 'ROLL') {
-            message = `Player ${state.currentPlayer}'s turn - Roll dice`;
-        } else if (state.phase === 'MOVE') {
-            if (state.availableMoves.length === 0 || !hasAnyValidMovesUI()) {
-                message = `Player ${state.currentPlayer}'s turn - No more moves. Click "Confirm"`;
+            if (state.currentPlayer === 2) {
+                message = `Player 2 (AI)'s turn - Rolling dice...`;
             } else {
-                message = `Player ${state.currentPlayer}'s turn - Make your moves`;
+                message = `Player ${state.currentPlayer}'s turn - Roll dice`;
+            }
+        } else if (state.phase === 'MOVE') {
+            if (state.currentPlayer === 2) {
+                if (isAITurnInProgress) {
+                    message = `Player 2 (AI) is thinking...`;
+                } else if (state.availableMoves.length === 0 || !hasAnyValidMovesUI()) {
+                    message = `Player 2 (AI)'s turn - No more moves`;
+                } else {
+                    message = `Player 2 (AI)'s turn - Making moves...`;
+                }
+            } else {
+                if (state.availableMoves.length === 0 || !hasAnyValidMovesUI()) {
+                    message = `Player ${state.currentPlayer}'s turn - No more moves. Click "Confirm"`;
+                } else {
+                    message = `Player ${state.currentPlayer}'s turn - Make your moves`;
+                }
             }
         }
 

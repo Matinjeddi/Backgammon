@@ -392,6 +392,26 @@ body {
     gap: 10px;
 }
 
+.game-mode-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-mode {
+    flex: 1;
+    background-color: #9b59b6;
+    color: white;
+}
+
+.btn-mode:hover:not(:disabled) {
+    background-color: #8e44ad;
+}
+
+.btn-mode.active {
+    background-color: #27ae60;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+}
+
 .btn {
     padding: 12px 20px;
     border: none;

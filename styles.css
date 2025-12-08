@@ -399,12 +399,12 @@ body {
 
 .btn-mode {
     flex: 1;
-    background-color: #9b59b6;
+    background-color: #c22929;
     color: white;
 }
 
 .btn-mode:hover:not(:disabled) {
-    background-color: #8e44ad;
+    background-color: #f4e10c;
 }
 
 .btn-mode.active {

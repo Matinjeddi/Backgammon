@@ -541,26 +541,91 @@ const BackgammonAI = (function() {
     }
 
     /**
-     * Detect game phase: RACE, CONTACT, or BACKGAME
+     * Detect game phase: RACE, CONTACT, BACKGAME, PRIMING, or BLITZ
+     * 
+     * PRIMING: Both players building consecutive points/primes to control movement
+     * BLITZ: Aggressive attack focused on hitting blots and making points quickly
+     * RACE: Both players bearing off (simple pip count race)
+     * CONTACT: Mid-game with hitting opportunities
+     * BACKGAME: One player significantly behind in pips
      */
     function detectGamePhase(gameState) {
+        const player2Primes = evaluatePrimes(gameState, 2);
+        const player1Primes = evaluatePrimes(gameState, 1);
+        const player2Anchors = evaluateAnchors(gameState, 2);
+        const player1Anchors = evaluateAnchors(gameState, 1);
+        const player2BlotSafety = evaluateBlotSafety(gameState, 2);
+        const player1BlotSafety = evaluateBlotSafety(gameState, 1);
+        
         const player1InHome = allCheckersInHomeBoardForAI(gameState, 1);
         const player2InHome = allCheckersInHomeBoardForAI(gameState, 2);
         const player1Pips = calculatePipCount(gameState, 1);
         const player2Pips = calculatePipCount(gameState, 2);
         const pipDiff = Math.abs(player1Pips - player2Pips);
 
-        // Both players bearing off = race
+        // Check for BLITZ conditions (aggressive phase)
+        // AI (Player 2) is blitzing if: many opponent blots, few of own blots, actively hitting
+        const isBlitzingByAI = isPrimingOrBlitzing(gameState, 2) === 'BLITZ';
+        
+        // Both players bearing off = RACE
         if (player1InHome && player2InHome) {
             return 'RACE';
         }
 
-        // One player significantly behind = backgame
+        // One player significantly behind = BACKGAME
         if (pipDiff > 30) {
             return 'BACKGAME';
         }
 
-        // Otherwise it's a contact game
+        // PRIMING: Both players have built 3+ point primes/anchors
+        // Indicates both focused on point-making and blocking
+        if (player2Primes.count >= 1 && player1Primes.count >= 1 &&
+            player2Primes.length >= 3 && player1Primes.length >= 3) {
+            return 'PRIMING';
+        }
+
+        // BLITZ: AI is attacking aggressively
+        if (isBlitzingByAI) {
+            return 'BLITZ';
+        }
+
+        // Otherwise it's a CONTACT game
+        return 'CONTACT';
+    }
+
+    /**
+     * Determine if player is in a priming or blitz position
+     * 
+     * PRIMING: Building consecutive points to create barriers
+     * BLITZ: Attacking opponent blots and making points aggressively
+     */
+    function isPrimingOrBlitzing(gameState, player) {
+        const opponent = player === 1 ? 2 : 1;
+        const primes = evaluatePrimes(gameState, player);
+        const opponentBlots = evaluateBlotSafety(gameState, opponent);
+        const ownBlots = evaluateBlotSafety(gameState, player);
+        
+        // Count checkers on bar (sign of active hitting/attacking)
+        const opponentOnBar = gameState.bar[`player${opponent}`];
+        
+        // Blitz indicators:
+        // 1. Opponent has multiple vulnerable blots
+        // 2. Own blots are minimal (defensive)
+        // 3. Building points quickly
+        // 4. Some opponent checkers already hit (on bar)
+        const vulnerableBlots = opponentBlots.count;
+        const ownVulnerableBlots = ownBlots.count;
+        
+        // If actively hitting and building points
+        if (opponentOnBar >= 1 && primes.count >= 1 && ownVulnerableBlots <= 2) {
+            return 'BLITZ';
+        }
+        
+        // If focused on making and maintaining primes
+        if (primes.length >= 3 && primes.count >= 2) {
+            return 'PRIMING';
+        }
+        
         return 'CONTACT';
     }
 
@@ -1019,6 +1084,34 @@ const BackgammonAI = (function() {
             distributionWeight = 2;
             raceWeight = 0.5;
             crunchWeight = 100; // Never crunch - disabled
+        } else if (phase === 'BLITZ') {
+            // In blitz, hitting and making points are critical
+            // Bar weight is high because we're actively hitting opponent
+            // Blot weight (opponent's) is highly valued - we want them vulnerable
+            pipWeight = 0.1;
+            bearoffWeight = 40;
+            barWeight = 250; // Hitting is priority - opponent on bar = good
+            homeWeight = 6;
+            blotWeight = 35; // Creating/maintaining opponent vulnerability
+            primeWeight = 25; // Make points to close them out
+            anchorWeight = 10;
+            distributionWeight = 2;
+            raceWeight = 0.5;
+            crunchWeight = 100; // Never crunch during blitz
+        } else if (phase === 'PRIMING') {
+            // In priming game, making and maintaining primes is priority
+            // Focus on building consecutive points and blocking opponent
+            // Blot safety is secondary to prime building
+            pipWeight = 0.2;
+            bearoffWeight = 30;
+            barWeight = 100;
+            homeWeight = 5;
+            blotWeight = 10; // Less focus on blots during priming
+            primeWeight = 40; // Prime-building is king
+            anchorWeight = 25; // Anchors support prime control
+            distributionWeight = 2;
+            raceWeight = 0.3;
+            crunchWeight = 50; // Some penalty to keep primes intact
         } else {
             // CONTACT game - balanced weights
             pipWeight = 0.3;
@@ -1196,6 +1289,83 @@ const BackgammonAI = (function() {
     }
 
     /**
+     * Calculate blitz strategy bonus
+     * Reward sequences that hit opponent blots and make points to close them out
+     */
+    function calculateBlitzBonus(gameState, sequence, player) {
+        if (player !== 2) {
+            return 0;
+        }
+
+        const phase = detectGamePhase(gameState);
+        if (phase !== 'BLITZ') {
+            return 0; // Only apply in blitz phase
+        }
+
+        let blitzBonus = 0;
+        const { state: resultingState } = applySequenceAndScore(gameState, sequence, player);
+
+        // Bonus for hitting opponent blots in the sequence
+        let hitsInSequence = 0;
+        for (let move of sequence) {
+            if (isHighPriorityHit(gameState, move, player)) {
+                hitsInSequence++;
+                blitzBonus += 5000; // Per hit bonus
+            }
+        }
+
+        // Bonus for making new points in home board (closing out)
+        for (let i = 1; i <= 6; i++) {
+            const before = gameState.board[i].player === 2 && gameState.board[i].count >= 2;
+            const after = resultingState.board[i].player === 2 && resultingState.board[i].count >= 2;
+            if (!before && after) {
+                blitzBonus += 3000; // Per new point made
+            }
+        }
+
+        return blitzBonus;
+    }
+
+    /**
+     * Calculate priming strategy bonus
+     * Reward sequences that build and extend primes (consecutive made points)
+     */
+    function calculatePrimingBonus(gameState, sequence, player) {
+        if (player !== 2) {
+            return 0;
+        }
+
+        const phase = detectGamePhase(gameState);
+        if (phase !== 'PRIMING') {
+            return 0; // Only apply in priming phase
+        }
+
+        let primingBonus = 0;
+        const { state: resultingState } = applySequenceAndScore(gameState, sequence, player);
+
+        // Count made points before and after
+        const beforePrimes = evaluatePrimes(gameState, player);
+        const afterPrimes = evaluatePrimes(resultingState, player);
+
+        // Bonus for extending prime length (most valuable)
+        if (afterPrimes.length > beforePrimes.length) {
+            primingBonus += (afterPrimes.length - beforePrimes.length) * 5000;
+        }
+
+        // Bonus for making new consecutive points
+        if (afterPrimes.count > beforePrimes.count) {
+            primingBonus += (afterPrimes.count - beforePrimes.count) * 2000;
+        }
+
+        // Major bonus for reaching 6-prime (unstoppable)
+        if (afterPrimes.length >= 6) {
+            primingBonus += 10000;
+        }
+
+        return primingBonus;
+    }
+
+    /**
      * Order moves by evaluation to improve alpha-beta pruning
      */
     function orderMovesByEvaluation(sequences, gameState, player) {
@@ -1209,7 +1379,9 @@ const BackgammonAI = (function() {
             const backmostBonus = calculateBackmostCheckerBonus(sequence, player);
             const noContactHomeBonus = calculateNoContactHomeBoardBonus(gameState, sequence, player);
             const bearoffBonus = calculateBearoffBonus(gameState, sequence, player);
-            const score = positionScore + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus;
+            const blitzBonus = calculateBlitzBonus(gameState, sequence, player);
+            const primingBonus = calculatePrimingBonus(gameState, sequence, player);
+            const score = positionScore + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus + blitzBonus + primingBonus;
             return { sequence, score };
         });
 
@@ -1325,12 +1497,14 @@ const BackgammonAI = (function() {
             const backmostBonus = calculateBackmostCheckerBonus(sequence, player);
             const noContactHomeBonus = calculateNoContactHomeBoardBonus(gameState, sequence, player);
             const bearoffBonus = calculateBearoffBonus(gameState, sequence, player);
+            const blitzBonus = calculateBlitzBonus(gameState, sequence, player);
+            const primingBonus = calculatePrimingBonus(gameState, sequence, player);
 
             let score;
             if (useSearch) {
-                score = evaluateWithLookahead(resultingState, MAX_SEARCH_DEPTH, player) + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus;
+                score = evaluateWithLookahead(resultingState, MAX_SEARCH_DEPTH, player) + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus + blitzBonus + primingBonus;
             } else {
-                score = evaluatePosition(resultingState) + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus;
+                score = evaluatePosition(resultingState) + hitPriorityScore + backmostBonus + noContactHomeBonus + bearoffBonus + blitzBonus + primingBonus;
             }
             
             if (score > bestScore) {

@@ -710,8 +710,10 @@ const BackgammonUI = (function() {
             elements.historyList.appendChild(historyItem);
         });
 
-        // Scroll to bottom
-        elements.historyList.scrollTop = elements.historyList.scrollHeight;
+        // Scroll history list to bottom without affecting page scroll
+        if (elements.historyList.lastChild) {
+            elements.historyList.lastChild.scrollIntoView({ block: 'nearest' });
+        }
     }
 
     /**

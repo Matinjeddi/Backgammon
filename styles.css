@@ -11,7 +11,7 @@
 
 body {
     font-family: Arial, sans-serif;
-    background-color: #fffdd0;
+    background-color: #2a3e4d;
     color: #ecf0f1;
     display: flex;
     justify-content: center;
@@ -47,6 +47,7 @@ body {
     display: flex;
     gap: 20px;
     align-items: flex-start;
+    justify-content: center;
 }
 
 .board-wrapper {
